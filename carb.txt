@@ -1,0 +1,481 @@
+Je comprends parfaitement ton problème. Tu veux anticiper une fonctionnalité que le prof n’a pas encore demandée, mais tu veux qu’elle soit bien conçue et flexible sur les unités.
+
+Le vrai problème que tu identifies
+Tu ne sais pas dans quelle unité le prof va imposer :
+
+Capacité carburant : litres (L) ou mètres cubes (m³)
+
+Consommation : L/s, L/min, L/h (ou m³/s, m³/min, m³/h)
+
+Si tu codes en dur avec des litres et L/s, et que le prof demande des m³ et L/h → tu dois tout réécrire.
+
+La bonne approche (flexible)
+Principe
+Le moteur interne de la simulation travaille toujours en unité cohérente :
+
+Capacité carburant en m³ (unité SI)
+
+Consommation en m³/s (unité SI)
+
+L’utilisateur choisit ses unités préférées dans le formulaire.
+L’affichage convertit automatiquement selon le choix.
+
+Ce que tu dois ajouter (sans coder tout de suite)
+1. Dans Avion.h
+m_carburant_m3 (stocké en m³)
+
+m_capacite_m3 (stocké en m³)
+
+m_consommation_m3_par_s (stocké en m³/s)
+
+2. Dans FormulaireWindow
+Ajouter des unités modifiables :
+
+Champ	Unité par défaut	Autres unités possibles
+Capacité carburant	Litres (L)	m³
+Consommation	L/min	L/s, L/h, m³/s, m³/min, m³/h
+L’utilisateur choisit dans un QComboBox à côté de chaque champ.
+
+3. Conversion à la saisie
+Si l’utilisateur entre 5000 L :
+
+convertir en m³ → 5000 / 1000 = 5 m³ → stocké dans Avion
+
+Si l’utilisateur entre 10 L/min :
+
+convertir en m³/s → 10 / 1000 / 60 = 0.0001667 m³/s → stocké
+
+4. Dans TableauDeBord
+Afficher le carburant dans l’unité choisie par l’utilisateur :
+
+Pourcentage toujours affiché (%)
+
+Valeur absolue : selon le choix utilisateur (L ou m³)
+
+Tableau des conversions nécessaires
+Capacité (volume)
+De	À	Formule
+Litres (L)	m³	L / 1000
+m³	Litres	m³ * 1000
+Consommation (débit)
+De	À m³/s	Formule
+L/s	m³/s	L/s / 1000
+L/min	m³/s	L/min / 1000 / 60
+L/h	m³/s	L/h / 1000 / 3600
+m³/s	m³/s	m³/s (inchangé)
+m³/min	m³/s	m³/min / 60
+m³/h	m³/s	m³/h / 3600
+Structure des nouveaux champs dans FormulaireWindow
+text
+┌─────────────────────────────────────────────────────┐
+│ Capacité carburant : [5000] [L ▼] │
+│ (options : L, m³) │
+├─────────────────────────────────────────────────────┤
+│ Consommation : [10] [L/min ▼] │
+│ (options : L/s, L/min, L/h, │
+│ m³/s, m³/min, m³/h) │
+└─────────────────────────────────────────────────────┘
+Ce qui change dans DataManager (data.txt)
+text
+carburant_capacite=5                                    # toujours en m³
+carburant_consommation=0.0001667                        # toujours en m³/s
+carburant_unite_capacite=L                              # optionnel (pour l'affichage)
+carburant_unite_consommation=L/min                      # optionnel (pour l'affichage)
+
+Plan de modification
+- modele/Avion.h → ajouter attributs carburant + méthodes
+- modele/Avion.cpp → constructeur modifié + consommation carburant
+- modele/Simulation.h → ajouter PANNE_SECHE dans CauseDestruction
+- modele/Simulation.cpp → ajouter appel consommation + évaluation panne
+- persistence/DataManager.h → nouvelle signature
+- persistence/DataManager.cpp → lecture/écriture nouveaux champs
+- ui/FormulaireWindow.h → ajouter widgets carburant + unités
+- ui/FormulaireWindow.cpp → construire UI + validation + conversion
+- ui/SimulationWindow.h → stocker nouvelles valeurs initiales
+- ui/SimulationWindow.cpp → RESTART avec nouveaux paramètres
+- ui/TableauDeBord.h → ajouter labels carburant
+- ui/TableauDeBord.cpp → afficher carburant + pourcentage
+- main.cpp → ajuster si nécessaire
+
+
+Conception complète : Carburant + Chute libre
+📋 Règles métier ajoutées
+Carburant
+Règle	Description
+Capacité initiale	Configurable dans formulaire (L ou m³)
+Consommation	Configurable (L/s, L/min, L/h, m³/s, m³/min, m³/h)
+Stockage interne	Toujours en m³ pour la consommation, m³/s pour le débit
+Décrément	À chaque tick : carburant -= consommation × dt
+Panne sèche	Si carburant ≤ 0 ET avion en vol → déclenche chute
+Chute (décrochage + panne sèche)
+Règle	Description
+Déclenchement	Décrochage OU Panne sèche en vol
+Vx	Devient 0 (plus de mouvement horizontal)
+Vy	Devient -50 m/s (chute verticale)
+Contrôle	Désactivé (boutons inactifs)
+Consommation	Suspendue pendant la chute
+Fin	Popup destruction à altitude = 0
+📁 Fichiers modifiés (version finale avec carburant + chute)
+1. modele/Avion.h
+Ajouts :
+
+cpp
+public:
+    // Carburant
+    void consommerCarburant(double dt);
+    bool estEnPanneSeche() const;
+    
+    // Conversions carburant (m³ ↔ L, etc.)
+    double getCapaciteEnL() const;
+    double getCapaciteEnM3() const;
+    double getCarburantRestantEnL() const;
+    double getCarburantRestantEnM3() const;
+    double getPourcentageCarburant() const;
+    QString getCapaciteFormatee() const;
+    QString getConsommationFormatee() const;
+    QString getCarburantRestantFormate() const;
+    
+    // Gestion unités
+    void setUniteVolumePreferee(UniteVolume unite);
+    void setUniteDebitPreferee(UniteDebit debit);
+    UniteVolume getUniteVolumePreferee() const;
+    UniteDebit getUniteDebitPreferee() const;
+    
+    // Getters carburant
+    double getCarburant_m3() const;
+    double getCapacite_m3() const;
+    double getConsommation_m3_s() const;
+    
+    // Chute
+    void declencherChute();
+
+private:
+    // Attributs carburant
+    double m_carburant_m3;           // actuel en m³
+    double m_capacite_m3;            // capacité totale en m³
+    double m_consommation_m3_s;      // consommation en m³/s
+    
+    // Préférences affichage
+    UniteVolume m_uniteVolumePreferee;  // LITRES ou METRES_CUBES
+    UniteDebit  m_uniteDebitPreferee;   // L_S, L_MIN, L_H, M3_S, M3_MIN, M3_H
+Enums à ajouter (si pas déjà faits) :
+
+cpp
+enum class UniteVolume { LITRES, METRES_CUBES };
+enum class UniteDebit { L_S, L_MIN, L_H, M3_S, M3_MIN, M3_H };
+2. modele/Avion.cpp
+Constructeur modifié :
+
+cpp
+Avion::Avion(..., 
+             double capaciteCarburant_m3,
+             double consommation_m3_s,
+             UniteVolume uniteVolumePreferee,
+             UniteDebit uniteDebitPreferee)
+    : ...
+    , m_carburant_m3(capaciteCarburant_m3)
+    , m_capacite_m3(capaciteCarburant_m3)
+    , m_consommation_m3_s(consommation_m3_s)
+    , m_uniteVolumePreferee(uniteVolumePreferee)
+    , m_uniteDebitPreferee(uniteDebitPreferee)
+{}
+Méthodes carburant :
+
+cpp
+void Avion::consommerCarburant(double dt)
+{
+    if (m_carburant_m3 > 0.0) {
+        m_carburant_m3 -= m_consommation_m3_s * dt;
+        if (m_carburant_m3 < 0.0) m_carburant_m3 = 0.0;
+    }
+}
+
+bool Avion::estEnPanneSeche() const
+{
+    return m_carburant_m3 <= 0.0 && estEnVol();
+}
+
+double Avion::getCapaciteEnL() const { return m_capacite_m3 * 1000.0; }
+double Avion::getCapaciteEnM3() const { return m_capacite_m3; }
+double Avion::getCarburantRestantEnL() const { return m_carburant_m3 * 1000.0; }
+double Avion::getCarburantRestantEnM3() const { return m_carburant_m3; }
+double Avion::getPourcentageCarburant() const
+{
+    if (m_capacite_m3 <= 0.0) return 0.0;
+    return (m_carburant_m3 / m_capacite_m3) * 100.0;
+}
+Formatage selon unités :
+
+cpp
+QString Avion::getCapaciteFormatee() const
+{
+    if (m_uniteVolumePreferee == UniteVolume::LITRES)
+        return QString("%1 L").arg(getCapaciteEnL(), 0, 'f', 0);
+    else
+        return QString("%1 m³").arg(m_capacite_m3, 0, 'f', 2);
+}
+
+QString Avion::getConsommationFormatee() const
+{
+    double valeur;
+    QString unite;
+    switch (m_uniteDebitPreferee) {
+        case UniteDebit::L_S:   valeur = m_consommation_m3_s * 1000.0; unite = "L/s"; break;
+        case UniteDebit::L_MIN: valeur = m_consommation_m3_s * 1000.0 * 60.0; unite = "L/min"; break;
+        case UniteDebit::L_H:   valeur = m_consommation_m3_s * 1000.0 * 3600.0; unite = "L/h"; break;
+        case UniteDebit::M3_S:  valeur = m_consommation_m3_s; unite = "m³/s"; break;
+        case UniteDebit::M3_MIN: valeur = m_consommation_m3_s * 60.0; unite = "m³/min"; break;
+        case UniteDebit::M3_H:  valeur = m_consommation_m3_s * 3600.0; unite = "m³/h"; break;
+        default: valeur = m_consommation_m3_s * 1000.0 * 60.0; unite = "L/min";
+    }
+    return QString("%1 %2").arg(valeur, 0, 'f', 4).arg(unite);
+}
+
+QString Avion::getCarburantRestantFormate() const
+{
+    if (m_uniteVolumePreferee == UniteVolume::LITRES)
+        return QString("%1 L").arg(getCarburantRestantEnL(), 0, 'f', 0);
+    else
+        return QString("%1 m³").arg(m_carburant_m3, 0, 'f', 2);
+}
+Méthode chute :
+
+cpp
+void Avion::declencherChute()
+{
+    m_vx_ms = 0.0;
+    m_vy_ms = -50.0;  // 180 km/h vers le bas
+    // Le carburant n'est plus consommé pendant la chute
+}
+3. modele/Simulation.h
+Modifications :
+
+cpp
+enum class EtatSimulation {
+    EN_ATTENTE,
+    EN_COURS,
+    EN_PAUSE,
+    EN_CHUTE,      // ← NOUVEAU
+    REUSSI,
+    DETRUIT
+};
+
+enum class CauseDestruction {
+    AUCUNE,
+    DECROCHAGE,
+    AVANT_PISTE,
+    APRES_PISTE,
+    DEPASSEMENT_PISTE,
+    PANNE_SECHE,   // ← NOUVEAU
+    CRASH          // ← NOUVEAU (impact après chute)
+};
+
+class Simulation : public QObject
+{
+    // ...
+private:
+    CauseDestruction m_causeStockee;  // Stocke cause avant chute
+};
+4. modele/Simulation.cpp
+Constructeur :
+
+cpp
+Simulation::Simulation(...) : ...
+    , m_causeStockee(CauseDestruction::AUCUNE)
+{}
+Méthode tick() :
+
+cpp
+void Simulation::tick()
+{
+    if (m_etat == EtatSimulation::EN_CHUTE) {
+        // Chute : seulement mise à jour position
+        m_avion->mettreAJour(DT);
+    } else {
+        // Vol normal : position + carburant
+        m_avion->mettreAJour(DT);
+        m_avion->consommerCarburant(DT);
+    }
+    
+    evaluerConditions();
+    emit simulationMiseAJour();
+}
+Méthode evaluerConditions() :
+
+cpp
+void Simulation::evaluerConditions()
+{
+    double altitude = m_avion->getAltitude();
+    double distance = m_avion->getDistancePiste();
+    
+    // Cas 1 : Déjà en chute → attendre impact
+    if (m_etat == EtatSimulation::EN_CHUTE) {
+        if (altitude <= 0.0) {
+            terminer(EtatSimulation::DETRUIT, m_causeStockee);
+        }
+        return;
+    }
+    
+    // Cas 2 : Détection panne sèche (uniquement en vol)
+    if (m_avion->estEnVol() && m_avion->estEnPanneSeche()) {
+        m_causeStockee = CauseDestruction::PANNE_SECHE;
+        m_avion->declencherChute();
+        m_etat = EtatSimulation::EN_CHUTE;
+        return;
+    }
+    
+    // Cas 3 : Détection décrochage (uniquement en vol)
+    if (m_avion->estEnVol() && m_avion->estEnDecrochage(m_modeDecrochage)) {
+        m_causeStockee = CauseDestruction::DECROCHAGE;
+        m_avion->declencherChute();
+        m_etat = EtatSimulation::EN_CHUTE;
+        return;
+    }
+    
+    // Cas 4 : Atterrissage normal (sol)
+    if (altitude <= 0.0) {
+        if (m_piste->contientPosition(distance))
+            terminer(EtatSimulation::REUSSI, CauseDestruction::AUCUNE);
+        else if (distance < 0.0)
+            terminer(EtatSimulation::DETRUIT, CauseDestruction::AVANT_PISTE);
+        else
+            terminer(EtatSimulation::DETRUIT, CauseDestruction::APRES_PISTE);
+        return;
+    }
+    
+    // Cas 5 : Dépassement piste (sans toucher sol)
+    if (distance >= m_piste->getLongueur()) {
+        terminer(EtatSimulation::DETRUIT, CauseDestruction::DEPASSEMENT_PISTE);
+    }
+}
+5. persistence/DataManager.h
+Modification signature :
+
+cpp
+static bool charger(QString& nom,
+                    double& vitesseX, double& vitesseY,
+                    double& acceleration, double& vitesseDecrochage,
+                    double& altitude, double& distancePiste,
+                    double& gammaX, double& gammaY,
+                    double& capaciteCarburant_m3, double& consommation_m3_s,
+                    int& uniteVolumePreferee, int& uniteDebitPreferee);
+6. persistence/DataManager.cpp
+Ajouts dans sauvegarder() :
+
+cpp
+out << "capacite_carburant_m3=" << avion.getCapaciteEnM3() << "\n";
+out << "consommation_m3_s=" << avion.getConsommation_m3_s() << "\n";
+out << "unite_volume_preferee=" << static_cast<int>(avion.getUniteVolumePreferee()) << "\n";
+out << "unite_debit_preferee=" << static_cast<int>(avion.getUniteDebitPreferee()) << "\n";
+Ajouts dans charger() :
+
+cpp
+clesRequises << "capacite_carburant_m3" << "consommation_m3_s"
+             << "unite_volume_preferee" << "unite_debit_preferee";
+
+capaciteCarburant_m3 = donnees["capacite_carburant_m3"].toDouble();
+consommation_m3_s    = donnees["consommation_m3_s"].toDouble();
+uniteVolumePreferee  = donnees["unite_volume_preferee"].toInt();
+uniteDebitPreferee   = donnees["unite_debit_preferee"].toInt();
+7. ui/FormulaireWindow.h
+Ajouts :
+
+cpp
+private:
+    // Nouveaux champs carburant
+    QLineEdit*   m_champCapaciteCarburant;
+    QComboBox*   m_comboUniteVolume;
+    QLineEdit*   m_champConsommation;
+    QComboBox*   m_comboUniteDebit;
+    QLineEdit*   m_champDistancePiste;  // rendu modifiable
+    
+    // Méthodes conversion
+    double convertirVersM3(double valeur, int indexUnite);
+    double convertirVersM3ParSeconde(double valeur, int indexUnite);
+8. ui/FormulaireWindow.cpp
+Ajouts :
+
+Champs dans construireUI() (capacité + consommation + choix unités)
+
+convertirVersM3() et convertirVersM3ParSeconde()
+
+Validation des champs carburant
+
+Passage des valeurs au constructeur Avion
+
+9. ui/SimulationWindow.h
+Ajouts attributs RESTART :
+
+cpp
+private:
+    // Carburant
+    double      m_capaciteCarburantInitial_m3;
+    double      m_consommationInitial_m3_s;
+    UniteVolume m_uniteVolumeInitial;
+    UniteDebit  m_uniteDebitInitial;
+10. ui/SimulationWindow.cpp
+Constructeur : sauvegarde valeurs carburant
+
+cpp
+m_capaciteCarburantInitial_m3 = avion->getCapaciteEnM3();
+m_consommationInitial_m3_s    = avion->getConsommation_m3_s();
+m_uniteVolumeInitial          = avion->getUniteVolumePreferee();
+m_uniteDebitInitial           = avion->getUniteDebitPreferee();
+Connexion détection chute :
+
+cpp
+connect(m_sim, &Simulation::simulationMiseAJour, this, [this]() {
+    if (m_sim->getEtat() == EtatSimulation::EN_CHUTE) {
+        activerControles(false);
+        m_btnStart->setEnabled(false);
+        m_btnPause->setEnabled(false);
+    }
+});
+Méthode onRestart() modifiée :
+
+cpp
+m_sim->restart(..., m_capaciteCarburantInitial_m3, m_consommationInitial_m3_s,
+               m_uniteVolumeInitial, m_uniteDebitInitial);
+11. ui/TableauDeBord.h
+Ajouts :
+
+cpp
+private:
+    // Nouveaux widgets carburant
+    QLabel*       m_lblCarburantValeur;
+    QProgressBar* m_barreCarburant;
+    QLabel*       m_lblConsommation;
+12. ui/TableauDeBord.cpp
+Ajouts dans construireUI() : groupe Carburant avec barre progression
+
+Ajouts dans rafraichir() :
+
+cpp
+// Carburant
+double pourcentage = avion->getPourcentageCarburant();
+m_lblCarburantValeur->setText(QString("%1 / %2")
+    .arg(avion->getCarburantRestantFormate())
+    .arg(avion->getCapaciteFormatee()));
+m_barreCarburant->setValue(static_cast<int>(pourcentage));
+m_lblConsommation->setText(QString("Consommation: %1")
+    .arg(avion->getConsommationFormatee()));
+
+// État EN_CHUTE
+case EtatSimulation::EN_CHUTE:
+    m_lblEtat->setStyleSheet("color: #ff6600; font-size: 12px; font-weight: bold;");
+    m_lblEtat->setText("⚠️ CHUTE EN COURS...");
+    break;
+📊 Récapitulatif final
+Fichier	Modifications
+modele/Avion.h	+15 attributs/méthodes
+modele/Avion.cpp	+80 lignes
+modele/Simulation.h	+2 enum values +1 attribut
+modele/Simulation.cpp	+50 lignes
+persistence/DataManager.h	signature modifiée
+persistence/DataManager.cpp	+10 lignes
+ui/FormulaireWindow.h	+6 widgets +2 méthodes
+ui/FormulaireWindow.cpp	+100 lignes
+ui/SimulationWindow.h	+4 attributs
+ui/SimulationWindow.cpp	+15 lignes
+ui/TableauDeBord.h	+3 widgets
+`ui/TableauDeBord.cpp	
