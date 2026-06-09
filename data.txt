@@ -1,0 +1,9 @@
+nom=Air Test
+vitesse_x=400
+vitesse_y=-50
+acceleration=10
+vitesse_decrochage=300
+altitude=1000
+distance_piste=-5000
+gamma_x=40
+gamma_y=60
