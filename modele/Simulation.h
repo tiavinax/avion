@@ -12,6 +12,7 @@ enum class EtatSimulation {
     EN_ATTENTE,
     EN_COURS,
     EN_PAUSE,
+    EN_CHUTE,      // ← NOUVEAU
     REUSSI,
     DETRUIT
 };
@@ -21,8 +22,10 @@ enum class CauseDestruction {
     DECROCHAGE,
     AVANT_PISTE,
     APRES_PISTE,
-    DEPASSEMENT_PISTE
+    DEPASSEMENT_PISTE,
+    PANNE_SECHE      // ← NOUVEAU
 };
+
 
 class Simulation : public QObject
 {
@@ -37,10 +40,12 @@ public:
     void pause();
     void reprendre();
 
-    // Remet tout à l'état initial depuis data.txt
+    // Remet tout à l'état initial (version avec carburant)
     void restart(const QString& nom,
                  double vx, double vy, double acc, double vd,
-                 double alt, double dist, double gx, double gy);
+                 double alt, double dist, double gx, double gy,
+                 double capaciteCarburant_m3, double consommation_m3_s,
+                 UniteVolume uniteVolume, UniteDebit uniteDebit);
 
     // ── Modes ─────────────────────────────────────────────────────
     void setModeFreinage(ModeFreinage mode)       { m_modeFreinage   = mode; }
@@ -71,8 +76,8 @@ private:
     CauseDestruction m_cause;
 
     // ── Modes actifs ──────────────────────────────────────────────
-    ModeFreinage   m_modeFreinage;    // FLEXIBLE par défaut
-    ModeDecrochage m_modeDecrochage;  // VX_SEULE par défaut
+    ModeFreinage   m_modeFreinage;
+    ModeDecrochage m_modeDecrochage;
 
     QTimer*       m_timer;
     QElapsedTimer m_chrono;
@@ -80,6 +85,7 @@ private:
 
     void evaluerConditions();
     void terminer(EtatSimulation etat, CauseDestruction cause);
+    CauseDestruction m_causeStockee;
 };
 
 #endif // SIMULATION_H

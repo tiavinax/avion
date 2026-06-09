@@ -32,7 +32,7 @@ SimulationWindow::SimulationWindow(Avion* avion, ParametresFreinage* freinage,
     setWindowTitle("Simulation Atterrissage");
     resize(1200, 650);
 
-    // Sauvegarde les paramètres initiaux pour le RESTART
+    // Sauvegarde des paramètres initiaux pour le RESTART
     m_nomInitial  = avion->getNom();
     m_vxInitial   = avion->getVitesseX_kmh();
     m_vyInitial   = avion->getVitesseY_kmh();
@@ -42,6 +42,12 @@ SimulationWindow::SimulationWindow(Avion* avion, ParametresFreinage* freinage,
     m_distInitial = avion->getDistancePiste();
     m_gxInitial   = avion->getGammaX_ms();
     m_gyInitial   = avion->getGammaY_ms();
+    
+    // NOUVEAUX : sauvegarde paramètres carburant
+    m_capaciteCarburantInitial_m3 = avion->getCapaciteEnM3();
+    m_consommationInitial_m3_s    = avion->getConsommation_m3_s();
+    m_uniteVolumeInitial          = avion->getUniteVolumePreferee();
+    m_uniteDebitInitial           = avion->getUniteDebitPreferee();
 
     Piste* piste = new Piste();
     m_sim    = new Simulation(avion, piste, freinage, this);
@@ -56,6 +62,16 @@ SimulationWindow::SimulationWindow(Avion* avion, ParametresFreinage* freinage,
             m_tableau, &TableauDeBord::rafraichir);
     connect(m_sim, &Simulation::simulationTerminee,
             this,  &SimulationWindow::onSimulationTerminee);
+            
+            // Dans le constructeur, après création de m_sim
+    connect(m_sim, &Simulation::simulationMiseAJour, this, [this]() {
+    if (m_sim->getEtat() == EtatSimulation::EN_CHUTE) {
+        activerControles(false);
+        m_btnStart->setEnabled(false);
+        m_btnPause->setEnabled(false);
+        // Afficher message "CHUTE EN COURS..." si voulu
+       }
+    });
 }
 
 void SimulationWindow::construireUI()
@@ -198,10 +214,12 @@ void SimulationWindow::onPauseReprendre()
 
 void SimulationWindow::onRestart()
 {
-    // Recharge les paramètres initiaux sauvegardés
+    // Recharge les paramètres initiaux (avec carburant)
     m_sim->restart(m_nomInitial, m_vxInitial, m_vyInitial, m_accInitial,
                    m_vdInitial, m_altInitial, m_distInitial,
-                   m_gxInitial, m_gyInitial);
+                   m_gxInitial, m_gyInitial,
+                   m_capaciteCarburantInitial_m3, m_consommationInitial_m3_s,
+                   m_uniteVolumeInitial, m_uniteDebitInitial);
 
     // Remet l'UI à l'état initial
     m_btnStart->setEnabled(true);
@@ -216,13 +234,11 @@ void SimulationWindow::onRestart()
 
 void SimulationWindow::onVxPlus()
 {
-    // Passe le mode actif pour que la recharge soit correcte
     m_sim->getAvion()->augmenterVx(m_sim->getModeFreinage());
     m_btnVxMoins->setStyleSheet(STYLE_BTN_VITESSE);
     m_tableau->rafraichir();
     m_zone->rafraichir();
 }
-
 
 void SimulationWindow::onVxMoins()
 {
@@ -280,13 +296,13 @@ void SimulationWindow::onToggleModeDecrochage()
     }
 }
 
-void SimulationWindow::onSimulationTerminee(EtatSimulation etat,
-                                             CauseDestruction cause)
+void SimulationWindow::onSimulationTerminee(EtatSimulation etat, CauseDestruction cause)
 {
     activerControles(false);
+    m_btnStart->setEnabled(false);
     m_btnPause->setEnabled(false);
+    m_btnRestart->setEnabled(true);
 
-    // ── QDialog de résultat ───────────────────────────────────────
     QDialog* dialog = new QDialog(this);
     dialog->setWindowTitle("Fin de simulation");
     dialog->setMinimumWidth(350);
@@ -308,6 +324,8 @@ void SimulationWindow::onSimulationTerminee(EtatSimulation etat,
                 causeStr = "ATTERRISSAGE APRÈS LA PISTE";       break;
             case CauseDestruction::DEPASSEMENT_PISTE:
                 causeStr = "DÉPASSEMENT DE PISTE";              break;
+            case CauseDestruction::PANNE_SECHE:                 // NOUVEAU
+                causeStr = "PANNE SÈCHE — plus de carburant";   break;
             default:
                 causeStr = "CAUSE INCONNUE";
         }
@@ -321,7 +339,6 @@ void SimulationWindow::onSimulationTerminee(EtatSimulation etat,
     lblMsg->setStyleSheet(QString("color: %1;").arg(couleur));
     lblMsg->setWordWrap(true);
 
-    // Boutons OK et RESTART dans le dialog
     QDialogButtonBox* btns = new QDialogButtonBox();
     QPushButton* btnOk      = btns->addButton("OK",      QDialogButtonBox::AcceptRole);
     QPushButton* btnRestart = btns->addButton("↺ RESTART", QDialogButtonBox::ResetRole);
@@ -338,7 +355,6 @@ void SimulationWindow::onSimulationTerminee(EtatSimulation etat,
     dlayout->addWidget(btns);
     dialog->setLayout(dlayout);
 
-    // Affiche aussi dans la barre principale
     m_lblMessage->setStyleSheet(QString("color: %1;").arg(couleur));
     m_lblMessage->setText(message.replace("\n", " — "));
     m_lblMessage->show();
@@ -346,7 +362,7 @@ void SimulationWindow::onSimulationTerminee(EtatSimulation etat,
     m_tableau->rafraichir();
     m_zone->rafraichir();
 
-    dialog->exec();  // bloquant — attend que l'utilisateur ferme
+    dialog->exec();
 }
 
 void SimulationWindow::onChangerVue(int index)

@@ -12,12 +12,9 @@ TableauDeBord::TableauDeBord(Simulation *sim, QWidget *parent)
 
 void TableauDeBord::construireUI()
 {
-    // Style général du tableau de bord : fond sombre, texte clair
     setStyleSheet("background-color: #0d1117; color: #e0e0e0;");
-    setMinimumWidth(250);
+    setMinimumWidth(280);
 
-    // Fonction lambda locale pour créer une ligne label titre + label valeur
-    // QGridLayout : disposition en grille (ligne, colonne)
     auto creerLigne = [](QGridLayout *grid, int ligne,
                          const QString &titre, QLabel *&labelValeur)
     {
@@ -56,8 +53,44 @@ void TableauDeBord::construireUI()
     QGridLayout *gridFrn = new QGridLayout(grpFreinage);
     grpFreinage->setStyleSheet(grpPosition->styleSheet());
 
-    creerLigne(gridFrn, 0, "Consommé X / 40 km/h", m_lblFreinageX);
-    creerLigne(gridFrn, 1, "Consommé Y / 60 km/h", m_lblFreinageY);
+    creerLigne(gridFrn, 0, "Consommé X / 40 m/s", m_lblFreinageX);
+    creerLigne(gridFrn, 1, "Consommé Y / 60 m/s", m_lblFreinageY);
+
+    // ── NOUVEAU : Groupe Carburant ─────────────────────────────────
+    QGroupBox *grpCarburant = new QGroupBox("Carburant");
+    grpCarburant->setStyleSheet(grpPosition->styleSheet());
+    QVBoxLayout *layoutCarb = new QVBoxLayout(grpCarburant);
+
+    // Valeur texte
+    m_lblCarburantValeur = new QLabel("---");
+    m_lblCarburantValeur->setStyleSheet("color: #ffdd00; font-size: 13px; font-weight: bold;");
+    m_lblCarburantValeur->setAlignment(Qt::AlignCenter);
+
+    // Barre de progression
+    m_barreCarburant = new QProgressBar();
+    m_barreCarburant->setRange(0, 100);
+    m_barreCarburant->setValue(100);
+    m_barreCarburant->setStyleSheet(
+        "QProgressBar {"
+        "    background-color: #2a2a2a;"
+        "    border: 1px solid #444;"
+        "    border-radius: 4px;"
+        "    text-align: center;"
+        "    color: white;"
+        "}"
+        "QProgressBar::chunk {"
+        "    background-color: #f39c12;"
+        "    border-radius: 3px;"
+        "}");
+
+    // Consommation
+    m_lblConsommation = new QLabel("Consommation: ---");
+    m_lblConsommation->setStyleSheet("color: #aaaaaa; font-size: 10px;");
+    m_lblConsommation->setAlignment(Qt::AlignCenter);
+
+    layoutCarb->addWidget(m_lblCarburantValeur);
+    layoutCarb->addWidget(m_barreCarburant);
+    layoutCarb->addWidget(m_lblConsommation);
 
     // ── Groupe : Temps ────────────────────────────────────────────
     QGroupBox *grpTemps = new QGroupBox("Chronomètre");
@@ -77,14 +110,15 @@ void TableauDeBord::construireUI()
     m_lblEtat->setStyleSheet("color: #aaaaaa; font-size: 12px;");
     m_lblEtat->setText("En attente...");
 
-    // ── Layout principal : empile tous les groupes ────────────────
+    // ── Layout principal ──────────────────────────────────────────
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->addWidget(grpPosition);
     layout->addWidget(grpVitesse);
     layout->addWidget(grpFreinage);
+    layout->addWidget(grpCarburant); // NOUVEAU
     layout->addWidget(grpTemps);
     layout->addWidget(grpEtat);
-    layout->addStretch(); // pousse tout vers le haut
+    layout->addStretch();
     setLayout(layout);
 }
 
@@ -102,7 +136,7 @@ void TableauDeBord::rafraichir()
     m_lblDistancePiste->setText(
         QString("%1 m").arg(avion->getDistancePiste(), 0, 'f', 1));
 
-    // ── Vitesses (km/h et m/s) ────────────────────────────────────
+    // ── Vitesses ──────────────────────────────────────────────────
     m_lblVitesseX->setText(
         QString("%1 | %2")
             .arg(avion->getVitesseX_kmh(), 0, 'f', 1)
@@ -134,6 +168,40 @@ void TableauDeBord::rafraichir()
                                 .arg(consY, 0, 'f', 1)
                                 .arg(avion->getGammaY_ms(), 0, 'f', 0));
 
+    // ── NOUVEAU : Carburant ───────────────────────────────────────
+    double pourcentage = avion->getPourcentageCarburant();
+    QString valeurFormatee = avion->getCarburantRestantFormate();
+    QString capaciteFormatee = avion->getCapaciteFormatee();
+
+    m_lblCarburantValeur->setText(QString("%1 / %2")
+                                      .arg(valeurFormatee)
+                                      .arg(capaciteFormatee));
+
+    m_barreCarburant->setValue(static_cast<int>(pourcentage));
+
+    // Changement de couleur selon niveau
+    if (pourcentage < 10)
+    {
+        m_barreCarburant->setStyleSheet(
+            "QProgressBar { background-color: #2a2a2a; border: 1px solid #444; border-radius: 4px; text-align: center; color: white; }"
+            "QProgressBar::chunk { background-color: #e74c3c; border-radius: 3px; }");
+    }
+    else if (pourcentage < 25)
+    {
+        m_barreCarburant->setStyleSheet(
+            "QProgressBar { background-color: #2a2a2a; border: 1px solid #444; border-radius: 4px; text-align: center; color: white; }"
+            "QProgressBar::chunk { background-color: #f39c12; border-radius: 3px; }");
+    }
+    else
+    {
+        m_barreCarburant->setStyleSheet(
+            "QProgressBar { background-color: #2a2a2a; border: 1px solid #444; border-radius: 4px; text-align: center; color: white; }"
+            "QProgressBar::chunk { background-color: #2ecc71; border-radius: 3px; }");
+    }
+
+    m_lblConsommation->setText(QString("Consommation: %1")
+                                   .arg(avion->getConsommationFormatee()));
+
     // ── Chronomètre ───────────────────────────────────────────────
     m_lblChronometre->setText(formaterTemps(m_sim->getTempsEcoule_ms()));
 
@@ -157,11 +225,14 @@ void TableauDeBord::rafraichir()
                                  "font-weight: bold;");
         m_lblEtat->setText("ATTERRISSAGE RÉUSSI ✓");
         break;
+    case EtatSimulation::EN_CHUTE:
+        m_lblEtat->setStyleSheet("color: #ff6600; font-size: 12px; font-weight: bold;");
+        m_lblEtat->setText("⚠️ CHUTE EN COURS...");
+        break;
     case EtatSimulation::DETRUIT:
     {
         m_lblEtat->setStyleSheet("color: #ff4444; font-size: 14px;"
                                  "font-weight: bold;");
-        // Affiche la cause de destruction
         QString cause;
         switch (m_sim->getCauseDestruction())
         {
@@ -177,6 +248,9 @@ void TableauDeBord::rafraichir()
         case CauseDestruction::DEPASSEMENT_PISTE:
             cause = "DÉPASSEMENT";
             break;
+        case CauseDestruction::PANNE_SECHE:
+            cause = "PANNE SÈCHE";
+            break;
         default:
             cause = "INCONNU";
         }
@@ -188,7 +262,6 @@ void TableauDeBord::rafraichir()
 
 QString TableauDeBord::formaterTemps(qint64 ms) const
 {
-    // Convertit des millisecondes en HH:MM:SS
     qint64 secondes = ms / 1000;
     qint64 minutes = secondes / 60;
     qint64 heures = minutes / 60;
@@ -196,7 +269,6 @@ QString TableauDeBord::formaterTemps(qint64 ms) const
     secondes %= 60;
     minutes %= 60;
 
-    // QString("%1").arg(val, 2, 10, QChar('0')) → padding zéro sur 2 chiffres
     return QString("%1:%2:%3")
         .arg(heures, 2, 10, QChar('0'))
         .arg(minutes, 2, 10, QChar('0'))

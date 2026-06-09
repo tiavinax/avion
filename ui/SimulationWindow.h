@@ -42,6 +42,12 @@ private:
     double  m_vxInitial, m_vyInitial, m_accInitial;
     double  m_vdInitial, m_altInitial, m_distInitial;
     double  m_gxInitial, m_gyInitial;
+    
+    // ── NOUVEAUX paramètres carburant pour RESTART ─────────────────
+    double      m_capaciteCarburantInitial_m3;
+    double      m_consommationInitial_m3_s;
+    UniteVolume m_uniteVolumeInitial;
+    UniteDebit  m_uniteDebitInitial;
 
     // ── Boutons principaux ────────────────────────────────────────
     QComboBox*   m_comboVue;
@@ -56,13 +62,13 @@ private:
     QPushButton* m_btnVyMoins;
 
     // ── Boutons bascule modes ─────────────────────────────────────
-    QPushButton* m_btnModeFreinage;    // Flexible / Absolu
-    QPushButton* m_btnModeDecrochage;  // Vx / Norme
+    QPushButton* m_btnModeFreinage;
+    QPushButton* m_btnModeDecrochage;
 
-    QLabel* m_lblMessage;  // message final réussi/détruit
+    QLabel* m_lblMessage;
 
     void construireUI();
-    void resetStyleBoutons();  // remet les boutons vitesse au style normal
+    void resetStyleBoutons();
     void activerControles(bool actif);
 };
 

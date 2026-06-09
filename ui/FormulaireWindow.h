@@ -1,26 +1,25 @@
 #ifndef FORMULAIREWINDOW_H
 #define FORMULAIREWINDOW_H
 
-#include <QWidget>      // classe de base pour toute fenêtre Qt
-#include <QLineEdit>    // champ de saisie texte (équivalent JTextField)
-#include <QLabel>       // texte non éditable
-#include <QPushButton>  // bouton cliquable
+#include <QWidget>
+#include <QLineEdit>
+#include <QLabel>
+#include <QPushButton>
+#include <QComboBox>
+#include "modele/Avion.h"
 
-// Fenêtre du formulaire de saisie des paramètres de vol
-// Hérite de QWidget → c'est une vraie fenêtre affichable
 class FormulaireWindow : public QWidget
 {
-    Q_OBJECT  // obligatoire pour les signaux/slots
+    Q_OBJECT
 
 public:
     explicit FormulaireWindow(QWidget* parent = nullptr);
 
 private slots:
-    // Appelé quand l'utilisateur clique sur VALIDER
     void onValider();
 
 private:
-    // ── Champs de saisie ──────────────────────────────────────────
+    // ── Champs de saisie existants ────────────────────────────────
     QLineEdit* m_champNom;
     QLineEdit* m_champAltitude;
     QLineEdit* m_champVitesseX;
@@ -29,13 +28,24 @@ private:
     QLineEdit* m_champAcceleration;
     QLineEdit* m_champGammaX;
     QLineEdit* m_champGammaY;
+    QLineEdit* m_champDistancePiste;      // NOUVEAU : distance initiale
+
+    // ── NOUVEAUX champs carburant ─────────────────────────────────
+    QLineEdit*   m_champCapaciteCarburant;
+    QComboBox*   m_comboUniteVolume;       // L ou m³
+    QLineEdit*   m_champConsommation;
+    QComboBox*   m_comboUniteDebit;        // L/s, L/min, L/h, m³/s, m³/min, m³/h
 
     QPushButton* m_boutonValider;
-    QLabel*      m_labelErreur;   // affiche les messages d'erreur en rouge
+    QLabel*      m_labelErreur;
 
     // ── Méthodes internes ─────────────────────────────────────────
-    void construireUI();    // construit et place tous les widgets
-    bool validerChamps();   // vérifie que les saisies sont correctes
+    void construireUI();
+    bool validerChamps();
+    
+    // ── NOUVELLES conversions ─────────────────────────────────────
+    double convertirVersM3(double valeur, int indexUnite);
+    double convertirVersM3ParSeconde(double valeur, int indexUnite);
 };
 
 #endif // FORMULAIREWINDOW_H
