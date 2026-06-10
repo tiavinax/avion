@@ -1,4 +1,4 @@
-Je comprends parfaitement ton problème. Tu veux anticiper une fonctionnalité que le prof n’a pas encore demandée, mais tu veux qu’elle soit bien conçue et flexible sur les unités.
+Je comprends parfaitement ton problème. Je veux anticiper une fonctionnalité que le prof n’a pas encore demandée, mais tu veux qu’elle soit bien conçue et flexible sur les unités.
 
 Le vrai problème que tu identifies
 Tu ne sais pas dans quelle unité le prof va imposer :

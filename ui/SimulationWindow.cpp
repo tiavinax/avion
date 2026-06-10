@@ -25,66 +25,66 @@ static const QString STYLE_BTN_BASCULE_ACTIF =
     "background-color: #1a6b8a; color: white; font-weight: bold;"
     "padding: 6px 14px; border-radius: 4px; border: 1px solid #2980b9;";
 
-SimulationWindow::SimulationWindow(Avion* avion, ParametresFreinage* freinage,
-                                   QWidget* parent)
+SimulationWindow::SimulationWindow(Avion *avion, ParametresFreinage *freinage,
+                                   QWidget *parent)
     : QWidget(parent)
 {
-    setWindowTitle("Simulation Atterrissage");
+    setWindowTitle("Simulation Atterrissage ");
+    
     resize(1200, 650);
 
     // Sauvegarde des paramètres initiaux pour le RESTART
-    m_nomInitial  = avion->getNom();
-    m_vxInitial   = avion->getVitesseX_kmh();
-    m_vyInitial   = avion->getVitesseY_kmh();
-    m_accInitial  = avion->getAcceleration_ms2();
-    m_vdInitial   = avion->getVitesseDecrochage_kmh();
-    m_altInitial  = avion->getAltitude();
+    m_nomInitial = avion->getNom();
+    m_vxInitial = avion->getVitesseX_kmh();
+    m_vyInitial = avion->getVitesseY_kmh();
+    m_accInitial = avion->getAcceleration_ms2();
+    m_vdInitial = avion->getVitesseDecrochage_kmh();
+    m_altInitial = avion->getAltitude();
     m_distInitial = avion->getDistancePiste();
-    m_gxInitial   = avion->getGammaX_ms();
-    m_gyInitial   = avion->getGammaY_ms();
-    
+    m_gxInitial = avion->getGammaX_ms();
+    m_gyInitial = avion->getGammaY_ms();
+
     // NOUVEAUX : sauvegarde paramètres carburant
     m_capaciteCarburantInitial_m3 = avion->getCapaciteEnM3();
-    m_consommationInitial_m3_s    = avion->getConsommation_m3_s();
-    m_uniteVolumeInitial          = avion->getUniteVolumePreferee();
-    m_uniteDebitInitial           = avion->getUniteDebitPreferee();
+    m_consommationInitial_m3_s = avion->getConsommation_m3_s();
+    m_uniteVolumeInitial = avion->getUniteVolumePreferee();
+    m_uniteDebitInitial = avion->getUniteDebitPreferee();
 
-    Piste* piste = new Piste();
-    m_sim    = new Simulation(avion, piste, freinage, this);
-    m_zone   = new ZoneSimulation(m_sim, this);
+    Piste *piste = new Piste();
+    m_sim = new Simulation(avion, piste, freinage, this);
+    m_zone = new ZoneSimulation(m_sim, this);
     m_tableau = new TableauDeBord(m_sim, this);
 
     construireUI();
 
     connect(m_sim, &Simulation::simulationMiseAJour,
-            m_zone,    &ZoneSimulation::rafraichir);
+            m_zone, &ZoneSimulation::rafraichir);
     connect(m_sim, &Simulation::simulationMiseAJour,
             m_tableau, &TableauDeBord::rafraichir);
     connect(m_sim, &Simulation::simulationTerminee,
-            this,  &SimulationWindow::onSimulationTerminee);
-            
-            // Dans le constructeur, après création de m_sim
-    connect(m_sim, &Simulation::simulationMiseAJour, this, [this]() {
+            this, &SimulationWindow::onSimulationTerminee);
+
+    // Dans le constructeur, après création de m_sim
+    connect(m_sim, &Simulation::simulationMiseAJour, this, [this]()
+            {
     if (m_sim->getEtat() == EtatSimulation::EN_CHUTE) {
         activerControles(false);
         m_btnStart->setEnabled(false);
         m_btnPause->setEnabled(false);
         // Afficher message "CHUTE EN COURS..." si voulu
-       }
-    });
+       } });
 }
 
 void SimulationWindow::construireUI()
 {
-    setStyleSheet("background-color: #0d1117; color: #e0e0e0;");
+    setStyleSheet("");
 
     // ── Sélecteur de vue ──────────────────────────────────────────
     m_comboVue = new QComboBox();
     m_comboVue->addItem("Vue Gauche");
     m_comboVue->addItem("Vue Droite");
     m_comboVue->addItem("Vue Arrière");
-    m_comboVue->setStyleSheet("background-color: #1e2530; color: white;"
-                              "padding: 4px; border: 1px solid #333;");
+    m_comboVue->setStyleSheet("padding: 4px;");
     connect(m_comboVue, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &SimulationWindow::onChangerVue);
 
@@ -105,19 +105,24 @@ void SimulationWindow::construireUI()
                                 "font-weight: bold; padding: 8px 20px; border-radius: 4px;");
     connect(m_btnRestart, &QPushButton::clicked, this, &SimulationWindow::onRestart);
 
+    // == num etu ===
+    QLabel *lblTitre = new QLabel("ETU003955");
+    lblTitre->setStyleSheet("color: #000000; font-size: 24px; font-weight: bold;");
+
     // ── Barre haute ───────────────────────────────────────────────
-    QHBoxLayout* barreHaut = new QHBoxLayout();
+    QHBoxLayout *barreHaut = new QHBoxLayout();
     barreHaut->addWidget(m_comboVue);
     barreHaut->addSpacing(10);
     barreHaut->addWidget(m_btnStart);
     barreHaut->addWidget(m_btnPause);
     barreHaut->addWidget(m_btnRestart);
+    barreHaut->addWidget(lblTitre);
     barreHaut->addStretch();
 
     // ── Boutons vitesse ───────────────────────────────────────────
-    m_btnVxPlus  = new QPushButton("Vx  +");
+    m_btnVxPlus = new QPushButton("Vx  +");
     m_btnVxMoins = new QPushButton("Vx  −");
-    m_btnVyPlus  = new QPushButton("Vy  +");
+    m_btnVyPlus = new QPushButton("Vy  +");
     m_btnVyMoins = new QPushButton("Vy  −");
 
     m_btnVxPlus->setStyleSheet(STYLE_BTN_VITESSE);
@@ -127,23 +132,28 @@ void SimulationWindow::construireUI()
 
     activerControles(false);
 
-    connect(m_btnVxPlus,  &QPushButton::clicked, this, &SimulationWindow::onVxPlus);
+    connect(m_btnVxPlus, &QPushButton::clicked, this, &SimulationWindow::onVxPlus);
     connect(m_btnVxMoins, &QPushButton::clicked, this, &SimulationWindow::onVxMoins);
-    connect(m_btnVyPlus,  &QPushButton::clicked, this, &SimulationWindow::onVyPlus);
+    connect(m_btnVyPlus, &QPushButton::clicked, this, &SimulationWindow::onVyPlus);
     connect(m_btnVyMoins, &QPushButton::clicked, this, &SimulationWindow::onVyMoins);
 
     // Groupes freinage
-    QGroupBox* grpX = new QGroupBox("Freinage X");
-    grpX->setStyleSheet("QGroupBox { color: #aaa; border: 1px solid #333;"
-                        "margin-top: 6px; padding: 4px; }"
-                        "QGroupBox::title { subcontrol-origin: margin; left: 8px; }");
-    QHBoxLayout* lx = new QHBoxLayout(grpX);
+    QString styleGroupe =
+    "QGroupBox { border: 1px solid #cccccc; border-radius: 4px;"
+    "margin-top: 8px; font-weight: bold; }"
+    "QGroupBox::title { subcontrol-origin: margin; left: 8px; }";
+
+    QGroupBox *grpX = new QGroupBox("Freinage X");
+    grpX->setStyleSheet(styleGroupe);
+
+    QHBoxLayout *lx = new QHBoxLayout(grpX);
     lx->addWidget(m_btnVxPlus);
     lx->addWidget(m_btnVxMoins);
 
-    QGroupBox* grpY = new QGroupBox("Freinage Y");
-    grpY->setStyleSheet(grpX->styleSheet());
-    QHBoxLayout* ly = new QHBoxLayout(grpY);
+    QGroupBox *grpY = new QGroupBox("Freinage Y");
+    grpY->setStyleSheet(styleGroupe);
+    
+    QHBoxLayout *ly = new QHBoxLayout(grpY);
     ly->addWidget(m_btnVyPlus);
     ly->addWidget(m_btnVyMoins);
 
@@ -159,7 +169,7 @@ void SimulationWindow::construireUI()
             this, &SimulationWindow::onToggleModeDecrochage);
 
     // ── Barre des contrôles ───────────────────────────────────────
-    QHBoxLayout* barreControles = new QHBoxLayout();
+    QHBoxLayout *barreControles = new QHBoxLayout();
     barreControles->addWidget(grpX);
     barreControles->addWidget(grpY);
     barreControles->addSpacing(20);
@@ -174,12 +184,12 @@ void SimulationWindow::construireUI()
     m_lblMessage->hide();
 
     // ── Zone + tableau ────────────────────────────────────────────
-    QHBoxLayout* contenu = new QHBoxLayout();
-    contenu->addWidget(m_zone,    4);
+    QHBoxLayout *contenu = new QHBoxLayout();
+    contenu->addWidget(m_zone, 4);
     contenu->addWidget(m_tableau, 1);
 
     // ── Layout principal ──────────────────────────────────────────
-    QVBoxLayout* layout = new QVBoxLayout(this);
+    QVBoxLayout *layout = new QVBoxLayout(this);
     layout->addLayout(barreHaut);
     layout->addLayout(barreControles);
     layout->addWidget(m_lblMessage);
@@ -200,11 +210,14 @@ void SimulationWindow::onStart()
 
 void SimulationWindow::onPauseReprendre()
 {
-    if (m_sim->getEtat() == EtatSimulation::EN_COURS) {
+    if (m_sim->getEtat() == EtatSimulation::EN_COURS)
+    {
         m_sim->pause();
         m_btnPause->setText("▶  REPRENDRE");
         activerControles(false);
-    } else if (m_sim->getEtat() == EtatSimulation::EN_PAUSE) {
+    }
+    else if (m_sim->getEtat() == EtatSimulation::EN_PAUSE)
+    {
         m_sim->reprendre();
         m_btnPause->setText("⏸  PAUSE");
         activerControles(true);
@@ -272,11 +285,14 @@ void SimulationWindow::onVyMoins()
 
 void SimulationWindow::onToggleModeFreinage()
 {
-    if (m_sim->getModeFreinage() == ModeFreinage::FLEXIBLE) {
+    if (m_sim->getModeFreinage() == ModeFreinage::FLEXIBLE)
+    {
         m_sim->setModeFreinage(ModeFreinage::ABSOLU);
         m_btnModeFreinage->setText("Freinage: ABSOLU");
         m_btnModeFreinage->setStyleSheet(STYLE_BTN_BASCULE);
-    } else {
+    }
+    else
+    {
         m_sim->setModeFreinage(ModeFreinage::FLEXIBLE);
         m_btnModeFreinage->setText("Freinage: FLEXIBLE");
         m_btnModeFreinage->setStyleSheet(STYLE_BTN_BASCULE_ACTIF);
@@ -285,11 +301,14 @@ void SimulationWindow::onToggleModeFreinage()
 
 void SimulationWindow::onToggleModeDecrochage()
 {
-    if (m_sim->getModeDecrochage() == ModeDecrochage::VX_SEULE) {
+    if (m_sim->getModeDecrochage() == ModeDecrochage::VX_SEULE)
+    {
         m_sim->setModeDecrochage(ModeDecrochage::NORME);
         m_btnModeDecrochage->setText("Décrochage: Norme");
         m_btnModeDecrochage->setStyleSheet(STYLE_BTN_BASCULE);
-    } else {
+    }
+    else
+    {
         m_sim->setModeDecrochage(ModeDecrochage::VX_SEULE);
         m_btnModeDecrochage->setText("Décrochage: Vx");
         m_btnModeDecrochage->setStyleSheet(STYLE_BTN_BASCULE_ACTIF);
@@ -303,53 +322,62 @@ void SimulationWindow::onSimulationTerminee(EtatSimulation etat, CauseDestructio
     m_btnPause->setEnabled(false);
     m_btnRestart->setEnabled(true);
 
-    QDialog* dialog = new QDialog(this);
+    QDialog *dialog = new QDialog(this);
     dialog->setWindowTitle("Fin de simulation");
     dialog->setMinimumWidth(350);
 
     QString message;
     QString couleur;
 
-    if (etat == EtatSimulation::REUSSI) {
+    if (etat == EtatSimulation::REUSSI)
+    {
         message = "✓  ATTERRISSAGE RÉUSSI !";
         couleur = "#2ecc71";
-    } else {
+    }
+    else
+    {
         QString causeStr;
-        switch (cause) {
-            case CauseDestruction::DECROCHAGE:
-                causeStr = "DÉCROCHAGE — vitesse insuffisante"; break;
-            case CauseDestruction::AVANT_PISTE:
-                causeStr = "ATTERRISSAGE AVANT LA PISTE";       break;
-            case CauseDestruction::APRES_PISTE:
-                causeStr = "ATTERRISSAGE APRÈS LA PISTE";       break;
-            case CauseDestruction::DEPASSEMENT_PISTE:
-                causeStr = "DÉPASSEMENT DE PISTE";              break;
-            case CauseDestruction::PANNE_SECHE:                 // NOUVEAU
-                causeStr = "PANNE SÈCHE — plus de carburant";   break;
-            default:
-                causeStr = "CAUSE INCONNUE";
+        switch (cause)
+        {
+        case CauseDestruction::DECROCHAGE:
+            causeStr = "DÉCROCHAGE — vitesse insuffisante";
+            break;
+        case CauseDestruction::AVANT_PISTE:
+            causeStr = "ATTERRISSAGE AVANT LA PISTE";
+            break;
+        case CauseDestruction::APRES_PISTE:
+            causeStr = "ATTERRISSAGE APRÈS LA PISTE";
+            break;
+        case CauseDestruction::DEPASSEMENT_PISTE:
+            causeStr = "DÉPASSEMENT DE PISTE";
+            break;
+        case CauseDestruction::PANNE_SECHE: // NOUVEAU
+            causeStr = "PANNE SÈCHE — plus de carburant";
+            break;
+        default:
+            causeStr = "CAUSE INCONNUE";
         }
         message = QString("✗  AVION DÉTRUIT\n%1").arg(causeStr);
         couleur = "#e74c3c";
     }
 
-    QLabel* lblMsg = new QLabel(message);
+    QLabel *lblMsg = new QLabel(message);
     lblMsg->setAlignment(Qt::AlignCenter);
     lblMsg->setFont(QFont("Arial", 14, QFont::Bold));
     lblMsg->setStyleSheet(QString("color: %1;").arg(couleur));
     lblMsg->setWordWrap(true);
 
-    QDialogButtonBox* btns = new QDialogButtonBox();
-    QPushButton* btnOk      = btns->addButton("OK",      QDialogButtonBox::AcceptRole);
-    QPushButton* btnRestart = btns->addButton("↺ RESTART", QDialogButtonBox::ResetRole);
+    QDialogButtonBox *btns = new QDialogButtonBox();
+    QPushButton *btnOk = btns->addButton("OK", QDialogButtonBox::AcceptRole);
+    QPushButton *btnRestart = btns->addButton("↺ RESTART", QDialogButtonBox::ResetRole);
 
     connect(btnOk, &QPushButton::clicked, dialog, &QDialog::accept);
-    connect(btnRestart, &QPushButton::clicked, [this, dialog]() {
+    connect(btnRestart, &QPushButton::clicked, [this, dialog]()
+            {
         dialog->accept();
-        onRestart();
-    });
+        onRestart(); });
 
-    QVBoxLayout* dlayout = new QVBoxLayout(dialog);
+    QVBoxLayout *dlayout = new QVBoxLayout(dialog);
     dlayout->addWidget(lblMsg);
     dlayout->addSpacing(10);
     dlayout->addWidget(btns);
@@ -367,9 +395,12 @@ void SimulationWindow::onSimulationTerminee(EtatSimulation etat, CauseDestructio
 
 void SimulationWindow::onChangerVue(int index)
 {
-    if (index == 0) m_zone->setVue(Vue::GAUCHE);
-    if (index == 1) m_zone->setVue(Vue::DROITE);
-    if (index == 2) m_zone->setVue(Vue::ARRIERE);
+    if (index == 0)
+        m_zone->setVue(Vue::GAUCHE);
+    if (index == 1)
+        m_zone->setVue(Vue::DROITE);
+    if (index == 2)
+        m_zone->setVue(Vue::ARRIERE);
 }
 
 void SimulationWindow::activerControles(bool actif)
